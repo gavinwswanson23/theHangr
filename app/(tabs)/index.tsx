@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import {
   createBoardSprite,
@@ -428,7 +429,7 @@ function UploadScreen({ onDetected, onBack }: { onDetected: (spriteUri: string) 
     if (!imgUri) return;
     const apiKey = process.env.EXPO_PUBLIC_REMOVEBG_API_KEY;
     if (!apiKey) {
-      setErrorMsg('Set EXPO_PUBLIC_REMOVEBG_API_KEY in your environment to enable background removal.');
+      setErrorMsg('Add EXPO_PUBLIC_REMOVEBG_API_KEY in your environment to continue.');
       return;
     }
 
@@ -467,7 +468,7 @@ function UploadScreen({ onDetected, onBack }: { onDetected: (spriteUri: string) 
       setPhase('done');
     } catch {
       setPhase('idle');
-      setErrorMsg('Could not remove background. Check API key and try again.');
+      setErrorMsg('Could not process image. Check API key and try again.');
     } finally {
       loopRef.current?.stop();
       spinAnim.setValue(0);
@@ -505,7 +506,7 @@ function UploadScreen({ onDetected, onBack }: { onDetected: (spriteUri: string) 
               {phase === 'detecting' && (
                 <View style={s.detectingOverlay}>
                   <Animated.View style={[s.spinner, { transform: [{ rotate: spin }] }]} />
-                  <Text style={s.detectingTxt}>Removing background…</Text>
+                  <Text style={s.detectingTxt}>Preparing your item…</Text>
                 </View>
               )}
               {phase === 'done' && (
@@ -513,7 +514,7 @@ function UploadScreen({ onDetected, onBack }: { onDetected: (spriteUri: string) 
                   <View style={s.successCircle}>
                     <Text style={{ color: C.white, fontSize: 24 }}>✓</Text>
                   </View>
-                  <Text style={s.detectingTxt}>Sprite ready</Text>
+                  <Text style={s.detectingTxt}>Ready to add</Text>
                 </View>
               )}
             </View>
@@ -527,9 +528,9 @@ function UploadScreen({ onDetected, onBack }: { onDetected: (spriteUri: string) 
         {!!imgUri && phase !== 'detecting' && (
           <>
             {!spriteUri ? (
-              <BtnPrimary label="Remove Background" onPress={removeBackground} />
+              <BtnPrimary label="Add to Board" onPress={removeBackground} />
             ) : (
-              <BtnPrimary label="Open Vision Board →" onPress={() => spriteUri && onDetected(spriteUri)} />
+              <BtnPrimary label="Open Board →" onPress={() => spriteUri && onDetected(spriteUri)} />
             )}
             <TouchableOpacity
               onPress={() => {
@@ -564,6 +565,7 @@ function DraggableSprite({
   maxCanvasHeight,
   trashRect,
   onDropToTrash,
+  onTrashHoverChange,
   onTransformCommit,
   onPressIn,
   selected,
@@ -575,6 +577,7 @@ function DraggableSprite({
   maxCanvasHeight: number;
   trashRect: { x: number; y: number; w: number; h: number } | null;
   onDropToTrash: () => void;
+  onTrashHoverChange?: (active: boolean) => void;
   onTransformCommit?: (next: { x: number; y: number; scale: number }) => void;
   onPressIn?: () => void;
   selected?: boolean;
@@ -589,7 +592,8 @@ function DraggableSprite({
   const pinchStartPosRef = useRef({ x: startX, y: startY });
   const dragStartTouchRef = useRef<{ x: number; y: number } | null>(null);
   const dragStartPosRef = useRef({ x: startX, y: startY });
-  const baseSpriteW = SW * 0.28;
+  const dragDistanceRef = useRef(0);
+  const baseSpriteW = SW * 0.22;
   const baseSpriteH = baseSpriteW / 0.65;
   const minScale = Math.max(10 / baseSpriteW, 10 / baseSpriteH);
   const maxScale = Math.max(1, maxCanvasHeight / baseSpriteH);
@@ -603,6 +607,24 @@ function DraggableSprite({
     x: (a.pageX + b.pageX) / 2,
     y: (a.pageY + b.pageY) / 2,
   });
+  const getTrashOverlapRatio = (x: number, y: number, padding: number) => {
+    if (!trashRect) return 0;
+    const spriteWNow = baseSpriteW * scaleRef.current;
+    const spriteHNow = baseSpriteH * scaleRef.current;
+    const spriteLeft = x;
+    const spriteTop = y;
+    const spriteRight = x + spriteWNow;
+    const spriteBottom = y + spriteHNow;
+    const trashLeft = trashRect.x - padding;
+    const trashTop = trashRect.y - padding;
+    const trashRight = trashRect.x + trashRect.w + padding;
+    const trashBottom = trashRect.y + trashRect.h + padding;
+    const overlapX = Math.max(0, Math.min(spriteRight, trashRight) - Math.max(spriteLeft, trashLeft));
+    const overlapY = Math.max(0, Math.min(spriteBottom, trashBottom) - Math.max(spriteTop, trashTop));
+    const spriteArea = spriteWNow * spriteHNow;
+    if (spriteArea <= 0) return 0;
+    return (overlapX * overlapY) / spriteArea;
+  };
 
   const panResponder = useRef(
     PanResponder.create({
@@ -612,6 +634,8 @@ function DraggableSprite({
         pinchStartDistanceRef.current = null;
         pinchStartMidRef.current = null;
         dragStartTouchRef.current = null;
+        dragDistanceRef.current = 0;
+        onTrashHoverChange?.(false);
         onPressIn?.();
       },
       onPanResponderMove: (evt) => {
@@ -649,8 +673,10 @@ function DraggableSprite({
         }
         const nextX = dragStartPosRef.current.x + (touch.pageX - dragStartTouchRef.current.x);
         const nextY = dragStartPosRef.current.y + (touch.pageY - dragStartTouchRef.current.y);
+        dragDistanceRef.current = Math.hypot(nextX - dragStartPosRef.current.x, nextY - dragStartPosRef.current.y);
         posRef.current = { x: nextX, y: nextY };
         pan.setValue(posRef.current);
+        onTrashHoverChange?.(getTrashOverlapRatio(nextX, nextY, 30) > 0.03);
       },
       onPanResponderRelease: () => {
         pinchStartDistanceRef.current = null;
@@ -658,13 +684,10 @@ function DraggableSprite({
         dragStartTouchRef.current = null;
         const x = posRef.current.x;
         const y = posRef.current.y;
-        if (trashRect) {
-          const cx = x + (baseSpriteW * scaleRef.current) / 2;
-          const cy = y + (baseSpriteH * scaleRef.current) / 2;
-          const insideX = cx >= trashRect.x && cx <= trashRect.x + trashRect.w;
-          const insideY = cy >= trashRect.y && cy <= trashRect.y + trashRect.h;
-          if (insideX && insideY) onDropToTrash();
-        }
+        onTrashHoverChange?.(false);
+        // Guard against accidental deletes on tap/short touches.
+        const overlapRatio = getTrashOverlapRatio(x, y, 30);
+        if (dragDistanceRef.current > 8 && overlapRatio > 0.03) onDropToTrash();
         onTransformCommit?.({ x, y, scale: scaleRef.current });
       },
     })
@@ -712,7 +735,17 @@ function VisionBoardScreen({
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [selectedSpriteId, setSelectedSpriteId] = useState<string | null>(null);
+  const [trashHovering, setTrashHovering] = useState(false);
+  const trashAnim = useRef(new Animated.Value(0)).current;
   const spriteList = Array.isArray(sprites) ? sprites : [];
+
+  useEffect(() => {
+    Animated.timing(trashAnim, {
+      toValue: trashHovering ? 1 : 0,
+      duration: 130,
+      useNativeDriver: true,
+    }).start();
+  }, [trashHovering, trashAnim]);
 
   const blobToDataUri = (blob: Blob) =>
     new Promise<string>((resolve, reject) => {
@@ -758,7 +791,7 @@ function VisionBoardScreen({
       onAddSprite(dataUri);
     } catch {
       onAddSprite(uri);
-      setAddError('Added original photo (background removal failed).');
+      setAddError('Added original photo.');
     } finally {
       setAdding(false);
     }
@@ -796,15 +829,13 @@ function VisionBoardScreen({
           <Text style={s.navBackTxt}>← Back</Text>
         </TouchableOpacity>
         <Text style={s.navTitle}>BOARD</Text>
-        <TouchableOpacity onPress={pickBoardImage} style={{ width: 70, alignItems: 'flex-end' }}>
-          <Text style={s.navBackTxt}>+ Add</Text>
-        </TouchableOpacity>
+        <View style={{ width: 70 }} />
       </View>
       <View style={s.boardActions}>
         <BtnOutline label="Camera Roll" onPress={pickBoardImage} style={{ flex: 1 }} />
         <BtnOutline label="Take Photo" onPress={takeBoardPhoto} style={{ flex: 1 }} />
       </View>
-      {adding && <Text style={s.boardStatus}>Processing sprite...</Text>}
+      {adding && <Text style={s.boardStatus}>Adding to board...</Text>}
       {!!boardSyncMsg && <Text style={s.boardStatus}>{boardSyncMsg}</Text>}
       {addError && <Text style={s.boardError}>{addError}</Text>}
       <View
@@ -812,7 +843,6 @@ function VisionBoardScreen({
         onLayout={(e) => {
           setCanvasHeight(e.nativeEvent.layout.height);
         }}>
-        <Text style={s.boardHint}>Drag your clothing sprite anywhere</Text>
         {spriteList.length > 0 ? (
           spriteList.map((sprite) => (
             <DraggableSprite
@@ -824,41 +854,29 @@ function VisionBoardScreen({
               maxCanvasHeight={canvasHeight}
               trashRect={trashRect}
               onDropToTrash={() => onDeleteSprite(sprite.id)}
+              onTrashHoverChange={setTrashHovering}
               onTransformCommit={(next) => onTransformCommit(sprite.id, next)}
-              onPressIn={() => setSelectedSpriteId(sprite.id)}
+              onPressIn={() => {
+                setSelectedSpriteId(sprite.id);
+                onBringToFront(sprite.id);
+              }}
               selected={selectedSpriteId === sprite.id}
             />
           ))
-        ) : (
-          <Text style={s.boardEmpty}>Upload and process an image first.</Text>
-        )}
+        ) : null}
         <View
           style={s.trashZone}
           onLayout={(e) => {
             const { x, y, width, height } = e.nativeEvent.layout;
             setTrashRect({ x, y, w: width, h: height });
           }}>
-          <Text style={s.trashIcon}>🗑</Text>
-        </View>
-        <View style={s.layerActions}>
-          <BtnOutline
-            label="Back"
-            onPress={() => {
-              if (!selectedSpriteId) return;
-              onSendToBack(selectedSpriteId);
-            }}
-            style={s.layerBtn}
-            textColor={selectedSpriteId ? C.black : C.grey2}
-          />
-          <BtnOutline
-            label="Front"
-            onPress={() => {
-              if (!selectedSpriteId) return;
-              onBringToFront(selectedSpriteId);
-            }}
-            style={s.layerBtn}
-            textColor={selectedSpriteId ? C.black : C.grey2}
-          />
+          <Animated.View
+            style={{
+              transform: [{ scale: trashAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] }) }],
+              opacity: trashAnim.interpolate({ inputRange: [0, 1], outputRange: [0.72, 1] }),
+            }}>
+            <MaterialCommunityIcons name={trashHovering ? 'trash-can' : 'trash-can-outline'} size={36} color={trashHovering ? C.black : C.grey3} />
+          </Animated.View>
         </View>
       </View>
     </SafeAreaView>
@@ -1170,12 +1188,17 @@ export default function HomeScreen() {
   const [boardId, setBoardId] = useState<string | null>(null);
   const [boardSyncMsg, setBoardSyncMsg] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    setScreen((prev) => (prev === 'splash' || prev === 'welcome' ? 'board' : prev));
+  }, [user?.id]);
+
   const createLocalSprite = (uri: string, zIndex: number): BoardSprite => ({
     id: `${LOCAL_SPRITE_ID_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2)}`,
     uri,
     x: 20 + (zIndex % 3) * 55,
     y: 64 + Math.floor(zIndex / 3) * 70,
-    scale: 1,
+    scale: 0.72,
     zIndex,
   });
 
@@ -1187,16 +1210,21 @@ export default function HomeScreen() {
         const nextBoardId = await ensurePrimaryBoard(user.id);
         setBoardId(nextBoardId);
         const rows = await fetchBoardSprites(nextBoardId, user.id);
-        setBoardSprites(
-          rows.map((row) => ({
-            id: row.id,
-            uri: row.image_url,
-            x: row.x,
-            y: row.y,
-            scale: row.scale,
-            zIndex: row.z_index,
-          }))
-        );
+        const serverSprites: BoardSprite[] = rows.map((row) => ({
+          id: row.id,
+          uri: row.image_url,
+          x: row.x,
+          y: row.y,
+          scale: row.scale,
+          zIndex: row.z_index,
+        }));
+        setBoardSprites((prev) => {
+          const localSprites = prev.filter((sprite) => isLocalSpriteId(sprite.id));
+          const serverIds = new Set(serverSprites.map((sprite) => sprite.id));
+          // Keep local optimistic sprites while loading/reloading from Supabase.
+          const safeLocals = localSprites.filter((sprite) => !serverIds.has(sprite.id));
+          return [...serverSprites, ...safeLocals];
+        });
       } catch {
         setBoardSyncMsg('Could not load board from database.');
       } finally {
@@ -1212,7 +1240,7 @@ export default function HomeScreen() {
     if (!user?.id) return;
 
     try {
-      setBoardSyncMsg('Saving sprite...');
+      setBoardSyncMsg('Adding to board...');
       const targetBoardId = boardId ?? (await ensurePrimaryBoard(user.id));
       if (!boardId) setBoardId(targetBoardId);
       const imageUrl = await uploadSpriteImage(user.id, uri);
@@ -1222,18 +1250,18 @@ export default function HomeScreen() {
         imageUrl,
         x: tempSprite.x,
         y: tempSprite.y,
-        scale: 1,
+        scale: tempSprite.scale,
         zIndex: tempSprite.zIndex,
       });
       setBoardSprites((prev) =>
         prev.map((spt) =>
           spt.id === tempSprite.id
-            ? { id: created.id, uri: created.image_url, x: created.x, y: created.y, scale: created.scale, zIndex: created.z_index }
+            ? { id: created.id, uri: tempSprite.uri, x: created.x, y: created.y, scale: created.scale, zIndex: created.z_index }
             : spt
         )
       );
     } catch {
-      setBoardSyncMsg('Sprite added locally, but failed to save to database.');
+      setBoardSyncMsg('Added locally, but failed to save to database.');
     } finally {
       setTimeout(() => setBoardSyncMsg(null), 1100);
     }
@@ -1245,7 +1273,7 @@ export default function HomeScreen() {
     try {
       await deleteBoardSprite(id, user.id);
     } catch {
-      setBoardSyncMsg('Could not delete sprite in database.');
+      setBoardSyncMsg('Could not delete item in database.');
       setTimeout(() => setBoardSyncMsg(null), 1200);
     }
   };
@@ -1294,7 +1322,7 @@ export default function HomeScreen() {
               y: next.y,
               scale: next.scale,
             }).catch(() => {
-              setBoardSyncMsg('Could not save sprite position.');
+              setBoardSyncMsg('Could not save item position.');
               setTimeout(() => setBoardSyncMsg(null), 1200);
             });
           }}
@@ -1399,22 +1427,18 @@ const s = StyleSheet.create({
   boardEmpty: { fontSize: 13, color: C.grey3, textAlign: 'center', marginTop: 36 },
   spriteWrap: { position: 'absolute' },
   spriteSelected: {},
-  spriteTouchArea: { margin: 20, flex: 1 },
+  spriteTouchArea: { flex: 1 },
   spriteImg: { width: '100%', height: '100%' },
   trashZone: {
     position: 'absolute',
-    right: 14,
-    bottom: 14,
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    borderWidth: 2,
-    borderColor: C.grey1,
-    backgroundColor: C.offwhite,
+    right: -12,
+    bottom: 1,
+    minWidth: 110,
+    height: 86,
+    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  trashIcon: { fontSize: 28 },
 
   // Feed
   feedNav: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 8, paddingBottom: 8 },

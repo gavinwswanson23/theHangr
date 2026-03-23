@@ -2,7 +2,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { useAuth } from '@/providers/AuthProvider';
 
-export default function TabTwoScreen() {
+export default function SignOutScreen() {
   const { signOut, user, authBusy } = useAuth();
 
   return (
