@@ -1207,31 +1207,33 @@ export default function HomeScreen() {
   }, [user?.id]);
 
   const addSpriteToBoard = async (uri: string) => {
-    if (!user?.id) {
-      setBoardSprites((prev) => [...prev, createLocalSprite(uri, prev.length)]);
-      return;
-    }
+    const tempSprite = createLocalSprite(uri, boardSprites.length);
+    setBoardSprites((prev) => [...prev, tempSprite]);
+    if (!user?.id) return;
+
     try {
       setBoardSyncMsg('Saving sprite...');
       const targetBoardId = boardId ?? (await ensurePrimaryBoard(user.id));
       if (!boardId) setBoardId(targetBoardId);
       const imageUrl = await uploadSpriteImage(user.id, uri);
-      const zIndex = boardSprites.length;
       const created = await createBoardSprite({
         boardId: targetBoardId,
         userId: user.id,
         imageUrl,
-        x: 20 + (zIndex % 3) * 55,
-        y: 64 + Math.floor(zIndex / 3) * 70,
+        x: tempSprite.x,
+        y: tempSprite.y,
         scale: 1,
-        zIndex,
+        zIndex: tempSprite.zIndex,
       });
-      setBoardSprites((prev) => [
-        ...prev,
-        { id: created.id, uri: created.image_url, x: created.x, y: created.y, scale: created.scale, zIndex: created.z_index },
-      ]);
+      setBoardSprites((prev) =>
+        prev.map((spt) =>
+          spt.id === tempSprite.id
+            ? { id: created.id, uri: created.image_url, x: created.x, y: created.y, scale: created.scale, zIndex: created.z_index }
+            : spt
+        )
+      );
     } catch {
-      setBoardSyncMsg('Failed to save sprite.');
+      setBoardSyncMsg('Sprite added locally, but failed to save to database.');
     } finally {
       setTimeout(() => setBoardSyncMsg(null), 1100);
     }
