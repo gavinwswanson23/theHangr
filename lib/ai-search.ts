@@ -20,55 +20,91 @@ export type DetectSearchResponse = {
   items: DetectedItem[];
 };
 
-const baseUrl = process.env.EXPO_PUBLIC_AI_BACKEND_URL ?? 'http://localhost:8000';
+const MOCK_PRODUCTS: Record<string, ProductHit[]> = {
+  top: [
+    {
+      title: 'Relaxed Cotton Tee',
+      image_url: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600',
+      affiliate_url: 'https://example.com/shop/top/tee',
+      source: 'Demo Shop',
+      price: '$34',
+      score: 0.95,
+    },
+    {
+      title: 'Oversized Rib Tank',
+      image_url: 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=600',
+      affiliate_url: 'https://example.com/shop/top/tank',
+      source: 'Demo Shop',
+      price: '$29',
+      score: 0.9,
+    },
+  ],
+  bottom: [
+    {
+      title: 'Wide-Leg Trouser',
+      image_url: 'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=600',
+      affiliate_url: 'https://example.com/shop/bottom/trouser',
+      source: 'Demo Shop',
+      price: '$64',
+      score: 0.94,
+    },
+    {
+      title: 'Tailored Chino',
+      image_url: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600',
+      affiliate_url: 'https://example.com/shop/bottom/chino',
+      source: 'Demo Shop',
+      price: '$58',
+      score: 0.89,
+    },
+  ],
+  shoes: [
+    {
+      title: 'Clean White Sneaker',
+      image_url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600',
+      affiliate_url: 'https://example.com/shop/shoes/sneaker',
+      source: 'Demo Shop',
+      price: '$79',
+      score: 0.96,
+    },
+    {
+      title: 'Leather Derby',
+      image_url: 'https://images.unsplash.com/photo-1449505278894-297fdb3edbc1?w=600',
+      affiliate_url: 'https://example.com/shop/shoes/derby',
+      source: 'Demo Shop',
+      price: '$120',
+      score: 0.88,
+    },
+  ],
+};
 
-const AI_REQUEST_TIMEOUT_MS = 60_000; // 60s for image upload + processing
+const MOCK_ITEMS: DetectedItem[] = [
+  {
+    category: 'top',
+    confidence: 0.93,
+    bbox: { x1: 68, y1: 60, x2: 280, y2: 292 },
+    products: MOCK_PRODUCTS.top,
+  },
+  {
+    category: 'bottom',
+    confidence: 0.9,
+    bbox: { x1: 78, y1: 250, x2: 300, y2: 520 },
+    products: MOCK_PRODUCTS.bottom,
+  },
+  {
+    category: 'shoes',
+    confidence: 0.86,
+    bbox: { x1: 88, y1: 510, x2: 280, y2: 680 },
+    products: MOCK_PRODUCTS.shoes,
+  },
+];
 
 export async function detectAndSearchFromImageUri(imageUri: string): Promise<DetectSearchResponse> {
-  const formData = new FormData();
-  formData.append(
-    'image',
-    {
-      uri: imageUri,
-      name: `upload-${Date.now()}.jpg`,
-      type: 'image/jpeg',
-    } as never
-  );
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
-
-  try {
-    const res = await fetch(`${baseUrl}/api/v1/detect-search`, {
-      method: 'POST',
-      body: formData,
-      signal: controller.signal,
-    });
-
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(txt || `AI request failed (${res.status})`);
-    }
-    return (await res.json()) as DetectSearchResponse;
-  } catch (err) {
-    if (err instanceof Error) {
-      if (err.name === 'AbortError') {
-        throw new Error('AI search timed out. Check that the backend is running and reachable.');
-      }
-      const msg = err.message?.toLowerCase() ?? '';
-      if (
-        msg.includes('network request failed') ||
-        msg.includes('failed to fetch') ||
-        msg.includes('timeout') ||
-        msg.includes('connection refused')
-      ) {
-        throw new Error(
-          `Cannot reach AI backend (${baseUrl}). Make sure the backend is running with: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
-        );
-      }
-    }
-    throw err;
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  if (!imageUri) throw new Error('Please choose an image first.');
+  const started = Date.now();
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  return {
+    request_id: `local-${Date.now()}`,
+    total_ms: Date.now() - started,
+    items: MOCK_ITEMS,
+  };
 }
