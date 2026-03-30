@@ -1,13 +1,68 @@
 import { Tabs } from 'expo-router';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 export default function TabLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
-      <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="collections" options={{ title: 'Collections' }} />
-      <Tabs.Screen name="add-item" options={{ title: 'Add Item' }} />
-      <Tabs.Screen name="reels" options={{ title: 'Reels' }} />
-      <Tabs.Screen name="calendar" options={{ title: 'Calendar' }} />
+    <Tabs
+      screenOptions={{
+        headerShown: true,
+        headerTitle: 'Hangr',
+        headerTitleStyle: { fontSize: 30, fontWeight: '700' },
+        headerShadowVisible: false,
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color, size, focused }) => {
+            const iconSize = focused ? size + 2 : size;
+            return <FontAwesome5 name="home" size={iconSize} color={color} />;
+          },
+        }}
+      />
+      <Tabs.Screen
+        name="collections"
+        options={{
+          title: 'Collections',
+          headerTitle: 'Collections',
+          tabBarIcon: ({ color, size, focused }) => {
+            const iconSize = focused ? size + 2 : size;
+            return <FontAwesome5 name="door-closed" size={iconSize} color={color} />;
+          },
+        }}
+      />
+      <Tabs.Screen
+        name="add-item"
+        options={{
+          title: 'Add Item',
+          headerTitle: 'Add Item',
+          tabBarIcon: ({ color, size, focused }) => {
+            const iconSize = focused ? size + 2 : size;
+            return <FontAwesome5 name="plus-square" size={iconSize} color={color} />;
+          },
+        }}
+      />
+      <Tabs.Screen
+        name="reels"
+        options={{
+          title: 'Reels',
+          tabBarIcon: ({ color, size, focused }) => {
+            const iconSize = focused ? size + 2 : size;
+            return <FontAwesome5 name="film" size={iconSize} color={color} />;
+          },
+        }}
+      />
+      <Tabs.Screen
+        name="calendar"
+        options={{
+          title: 'Calendar',
+          tabBarIcon: ({ color, size, focused }) => {
+            const iconSize = focused ? size + 2 : size;
+            return <FontAwesome5 name="calendar-alt" size={iconSize} color={color} />;
+          },
+        }}
+      />
     </Tabs>
   );
 }
