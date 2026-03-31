@@ -22,13 +22,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="collections"
+        name="calendar"
         options={{
-          title: 'Collections',
-          headerTitle: 'Collections',
+          title: 'Calendar',
+          headerShown: false,
           tabBarIcon: ({ color, size, focused }) => {
             const iconSize = focused ? size + 2 : size;
-            return <FontAwesome5 name="door-closed" size={iconSize} color={color} />;
+            return <FontAwesome5 name="calendar-alt" size={iconSize} color={color} />;
           },
         }}
       />
@@ -46,22 +46,30 @@ export default function TabLayout() {
       <Tabs.Screen
         name="reels"
         options={{
-          title: 'Reels',
+          title: 'Community',
+          headerTitle: 'Community',
           tabBarIcon: ({ color, size, focused }) => {
             const iconSize = focused ? size + 2 : size;
-            return <FontAwesome5 name="film" size={iconSize} color={color} />;
+            return <FontAwesome5 name="users" size={iconSize} color={color} />;
           },
         }}
       />
       <Tabs.Screen
-        name="calendar"
+        name="profile"
         options={{
-          title: 'Calendar',
-          headerShown: false,
+          title: 'Profile',
+          headerTitle: 'Profile',
           tabBarIcon: ({ color, size, focused }) => {
             const iconSize = focused ? size + 2 : size;
-            return <FontAwesome5 name="calendar-alt" size={iconSize} color={color} />;
+            return <FontAwesome5 name="user-circle" size={iconSize} color={color} />;
           },
+        }}
+      />
+      <Tabs.Screen
+        name="collections"
+        options={{
+          href: null,
+          headerTitle: 'Collections',
         }}
       />
     </Tabs>
