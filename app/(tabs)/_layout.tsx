@@ -57,6 +57,7 @@ export default function TabLayout() {
         name="calendar"
         options={{
           title: 'Calendar',
+          headerShown: false,
           tabBarIcon: ({ color, size, focused }) => {
             const iconSize = focused ? size + 2 : size;
             return <FontAwesome5 name="calendar-alt" size={iconSize} color={color} />;
